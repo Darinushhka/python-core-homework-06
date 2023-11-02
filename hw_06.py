@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 import unicodedata
+import shutil
 
 CATEGORIES = {
     "audio": [".mp3", ".ogg", ".wav", ".amr"],
@@ -25,15 +26,27 @@ def get_categories(file: Path) -> str:
 def move_file(file: Path, category: str, root_dir: Path) -> None:
     target_dir = root_dir.joinpath(category)
     if not target_dir.exists():
-        target_dir.mkdir(parents=True)  # Додавання параметру parents=True для створення батьківських папок, якщо вони не існують.
+        target_dir.mkdir(parents=True)
     new_name = normalize(file.stem) + file.suffix.lower()
-    file.replace(target_dir.joinpath(new_name))
+    target_path = target_dir.joinpath(new_name)
+    file.replace(target_path)
+
+    # Розархівування архівів
+    if category == "archives" and file.suffix.lower() == ".zip":
+        shutil.unpack_archive(target_path, target_dir)
+        file.unlink()  # Видалення оригінального архіву
+
+def remove_empty_folders(path: Path) -> None:
+    for folder in path.glob("**/"):
+        if folder.is_dir() and not list(folder.iterdir()):
+            folder.rmdir()
 
 def sort_folder(path: Path) -> None:
     for element in path.glob("**/*"):
         if element.is_file():
             category = get_categories(element)
             move_file(element, category, path)
+    remove_empty_folders(path)
 
 def main():
     try:
@@ -49,4 +62,3 @@ def main():
 
 if __name__ == '__main__':
     print(main())
-
